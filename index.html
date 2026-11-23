@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시간표</title>
+<style>
+  /* ===== 여기만 고치면 됩니다 =====
+     day: 0=월 1=화 2=수 3=목 4=금
+     start/end: "HH:MM" (24시간제)
+     color: 블록 색
+     link: 누르면 열릴 주소 (노션 페이지 링크 등, 없으면 "") */
+</style>
+<script>
+const CLASSES = [
+  { name: "Interacting in Spoken English", day: 0, start: "11:00", end: "12:50", link: "", color: "#cd7262" },
+  { name: "컴퓨팅 사고", day: 0, start: "13:00", end: "14:50", link: "https://app.notion.com/p/3d43323a2d2680d9be42ec525015daf3", color: "#cda75a" },
+  { name: "언어공학개론", day: 0, start: "15:00", end: "17:50", link: "https://app.notion.com/p/3db3323a2d2680919b53d7d73f2730d3", color: "#8fae62" },
+  { name: "언어학의 이해", day: 1, start: "13:00", end: "14:50", link: "https://app.notion.com/p/3ce3323a2d2680f8932fe7fa73004046", color: "#6a8fc7" },
+  { name: "Critical Writing", day: 2, start: "11:00", end: "12:50", link: "", color: "#8c74c4" },
+  { name: "수학으로보는출튀", day: 2, start: "13:00", end: "13:50", link: "", color: "#62a872" },
+  { name: "글로벌커뮤니케이션 영어", day: 3, start: "12:00", end: "14:50", link: "https://app.notion.com/p/3d03323a2d268068849ee8f6babc98a2", color: "#cd7262" },
+  { name: "불어", day: 3, start: "15:00", end: "17:50", link: "https://app.notion.com/p/3d03323a2d26806f869ec52f92e159b2", color: "#cda75a" },
+  { name: "씨앗", day: 4, start: "14:00", end: "16:50", link: "", color: "#8fae62" },
+];
+const START_HOUR = 8;  // 시간표 첫 줄
+const END_HOUR   = 18;   // 시간표 마지막 줄(이 시각 직전까지)
+</script>
+<style>
+  :root { --bg:#111; --line:#2c2c2c; --text:#eee; --sub:#999; --hour:56px; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text);
+         font-family:-apple-system,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
+         padding:12px; }
+  #status { font-size:14px; margin-bottom:10px; min-height:20px; }
+  #status b { color:#fff; }
+  #status span { color:var(--sub); }
+  .wrap { display:grid; grid-template-columns:32px repeat(5,1fr); }
+  .head { text-align:center; font-size:13px; color:var(--sub); padding:4px 0;
+          border-bottom:1px solid var(--line); }
+  .head.today { color:#fff; font-weight:700; }
+  .times { position:relative; }
+  .times div { height:var(--hour); font-size:12px; color:var(--sub); padding:2px 4px 0 0;
+               text-align:right; border-top:1px solid var(--line); }
+  .col { position:relative; border-left:1px solid var(--line); }
+  .col .cell { height:var(--hour); border-top:1px solid var(--line); }
+  .col.today { background:rgba(255,255,255,.03); }
+  .blk { position:absolute; left:2px; right:2px; border-radius:4px; padding:4px 5px;
+         font-size:12px; line-height:1.3; overflow:hidden; color:#fff; }
+  .blk.link { cursor:pointer; }
+  .blk.link:hover { filter:brightness(1.15); }
+  .blk.now { outline:2px solid #fff; box-shadow:0 0 10px rgba(255,255,255,.5); }
+  .blk.past { opacity:.45; }
+  .nowline { position:absolute; left:0; right:0; height:2px; background:#ff5a5a; z-index:5; }
+  .nowline::before { content:""; position:absolute; left:-4px; top:-3px; width:8px; height:8px;
+                     border-radius:50%; background:#ff5a5a; }
+</style>
+</head>
+<body>
+<div id="status"></div>
+<div class="wrap" id="grid"></div>
+
+<script>
+const DAYS = ["월","화","수","목","금"];
+const toMin = s => { const [h,m] = s.split(":").map(Number); return h*60+m; };
+
+function seoulNow() {
+  const p = new Intl.DateTimeFormat("en-US", { timeZone:"Asia/Seoul", weekday:"short",
+            hour:"numeric", minute:"numeric", hourCycle:"h23" }).formatToParts(new Date());
+  const get = t => p.find(x => x.type === t).value;
+  const wd = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].indexOf(get("weekday"));
+  return { day: wd, min: Number(get("hour"))*60 + Number(get("minute")) };
+}
+
+function render() {
+  const hourPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hour"));
+  const { day, min } = seoulNow();
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+
+  grid.appendChild(Object.assign(document.createElement("div"), { className:"head" }));
+  DAYS.forEach((d,i) => {
+    const h = document.createElement("div");
+    h.className = "head" + (i === day ? " today" : "");
+    h.textContent = d;
+    grid.appendChild(h);
+  });
+
+  const times = document.createElement("div");
+  times.className = "times";
+  for (let h = START_HOUR; h < END_HOUR; h++) {
+    const t = document.createElement("div");
+    t.textContent = h > 12 ? h - 12 : h;
+    times.appendChild(t);
+  }
+  grid.appendChild(times);
+
+  const base = START_HOUR * 60;
+  DAYS.forEach((_, i) => {
+    const col = document.createElement("div");
+    col.className = "col" + (i === day ? " today" : "");
+    for (let h = START_HOUR; h < END_HOUR; h++)
+      col.appendChild(Object.assign(document.createElement("div"), { className:"cell" }));
+
+    CLASSES.filter(c => c.day === i).forEach(c => {
+      const s = toMin(c.start), e = toMin(c.end);
+      const b = document.createElement("div");
+      b.className = "blk";
+      if (i === day && min >= s && min < e) b.classList.add("now");
+      else if (i === day && min >= e) b.classList.add("past");
+      b.style.top = ((s - base) / 60 * hourPx + 1) + "px";
+      b.style.height = ((e - s) / 60 * hourPx - 2) + "px";
+      b.style.background = c.color;
+      b.innerHTML = `<div>${c.name}</div>`;
+      if (c.link) {
+        b.classList.add("link");
+        b.onclick = () => window.open(c.link, "_blank");
+      }
+      col.appendChild(b);
+    });
+
+    if (i === day && min >= base && min < END_HOUR * 60) {
+      const line = document.createElement("div");
+      line.className = "nowline";
+      line.style.top = ((min - base) / 60 * hourPx) + "px";
+      col.appendChild(line);
+    }
+    grid.appendChild(col);
+  });
+
+  const st = document.getElementById("status");
+  const today = CLASSES.filter(c => c.day === day).sort((a,b) => toMin(a.start) - toMin(b.start));
+  const cur = today.find(c => min >= toMin(c.start) && min < toMin(c.end));
+  const next = today.find(c => toMin(c.start) > min);
+  const fmt = m => m >= 60 ? `${Math.floor(m/60)}시간 ${m%60}분` : `${m}분`;
+  if (day > 4) st.innerHTML = "<span>주말입니다. 수업 없음</span>";
+  else if (cur) st.innerHTML = `지금 <b>${cur.name}</b> <span>(${fmt(toMin(cur.end) - min)} 남음)</span>`;
+  else if (next) st.innerHTML = `다음 <b>${next.name}</b> <span>(${fmt(toMin(next.start) - min)} 후)</span>`;
+  else st.innerHTML = "<span>오늘 수업 끝</span>";
+}
+
+render();
+setInterval(render, 30 * 1000);
+</script>
+</body>
+</html>
